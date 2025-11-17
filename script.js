@@ -2,31 +2,54 @@ let playCount = 0;   // counts how many times speech has played
 let maxPlays = 2;    // limit to 2 times
 let speaking = false;
 
-function playSpeech() {
-    let text = document.getElementById("text").value;
+// Keep utterances alive so Chrome doesn't garbage-collect them
+let utteranceRef = null;
 
-    if (text.trim() === "") {
+// Load voices (required especially for Chrome)
+let voicesLoaded = false;
+speechSynthesis.onvoiceschanged = () => {
+    voicesLoaded = true;
+};
+
+function playSpeech() {
+    let textElement = document.getElementById("text");
+    if (!textElement) {
+        console.error("Textarea with id='text' not found.");
+        return;
+    }
+
+    let text = textElement.value.trim();
+
+    if (text === "") {
         alert("Please enter some text first!");
         return;
     }
 
-    // If already played 2 times → stop
     if (playCount >= maxPlays) {
         alert("Speech limit reached (2 times).");
         return;
     }
 
-    let speech = new SpeechSynthesisUtterance(text);
-    speech.lang = "en-US";
+    // Cancel anything stuck in queue
+    speechSynthesis.cancel();
 
-    speech.onstart = () => {
+    // Create new speech object
+    utteranceRef = new SpeechSynthesisUtterance(text);
+    utteranceRef.lang = "en-US";
+
+    utteranceRef.onstart = () => {
         speaking = true;
     };
 
-    speech.onend = () => {
+    utteranceRef.onend = () => {
         speaking = false;
-        playCount++;     // increase count only after speaking finishes
+        playCount++;
     };
 
-    window.speechSynthesis.speak(speech);
+    utteranceRef.onerror = (e) => {
+        console.error("Speech Error:", e);
+    };
+
+    // Speak
+    speechSynthesis.speak(utteranceRef);
 }
